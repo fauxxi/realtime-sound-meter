@@ -1,6 +1,17 @@
 import Head from 'next/head';
 import Image from 'next/image';
+import { useEffect, useState } from 'react';
+
 export default function Home() {
+	const [barsArray, setbarsArray] = useState([]);
+
+	useEffect(() => {
+		setbarsArray(
+			Array.from({ length: 200 }, () => 1 + Math.floor(Math.random() * 100))
+		);
+		return () => {};
+	}, []);
+
 	return (
 		<div>
 			<Head>
@@ -9,9 +20,52 @@ export default function Home() {
 				<link rel='icon' href='/favicon.ico' />
 			</Head>
 
-			<h1 className='text-xl text-blue-100 font-bold underline'>
-				Hello world!
-			</h1>
+			<main className='flex flex-col items-center gap-10 min-h-screen bg-slate-200'>
+				<h1 className='text-4xl'>Record Audio</h1>
+				<div className='flex gap-[2px] items-center h-[100px]'>
+					{barsArray &&
+						barsArray.map((x, i) => {
+							return i === 100 ? (
+								<div className={`w-[1px] h-[150px] bg-black`} key={i}></div>
+							) : i < 100 ? (
+								<div
+									className={`w-[3px] bg-slate-600`}
+									style={{ height: `${x}px`, transition: 'height 100ms ease' }}
+									key={i}
+								></div>
+							) : i === 150 ? (
+								<div
+									className={`h-[150px] w-[1px] bg-slate-300 whitespace-nowrap`}
+									key={i}
+								>
+									Play any music
+								</div>
+							) : i === 190 ? (
+								<div
+									className={`h-[150px] w-[1px] bg-slate-300 whitespace-nowrap`}
+									key={i}
+								>
+									Stop the music
+								</div>
+							) : (
+								<div
+									className={`w-[3px] bg-slate-400`}
+									style={{ height: `${2}px`, transition: 'height 100ms ease' }}
+									key={i}
+								></div>
+							);
+						})}
+				</div>
+				<div className='text-3xl'>00:01:35</div>
+				<div className='flex gap-10 text-white'>
+					<div className='h-16 w-16 flex justify-center items-center bg-slate-600 rounded-full'>
+						Rec
+					</div>
+					<div className='h-16 w-16 flex justify-center items-center bg-slate-600 rounded-full'>
+						Stop
+					</div>
+				</div>
+			</main>
 
 			<footer></footer>
 		</div>
