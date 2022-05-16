@@ -1,16 +1,57 @@
 import Head from 'next/head';
 import Image from 'next/image';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
+
+function useWindowSize() {
+	// Initialize state with undefined width/height so server and client renders match
+	// Learn more here: https://joshwcomeau.com/react/the-perils-of-rehydration/
+	const [windowSize, setWindowSize] = useState({
+		width: undefined,
+		height: undefined,
+	});
+
+	useEffect(() => {
+		// only execute all the code below in client side
+		if (typeof window !== 'undefined') {
+			// Handler to call on window resize
+			function handleResize() {
+				// Set window width/height to state
+				setWindowSize({
+					width: window.innerWidth,
+					height: window.innerHeight,
+				});
+			}
+
+			// Add event listener
+			window.addEventListener('resize', handleResize);
+
+			// Call handler right away so state gets updated with initial window size
+			handleResize();
+
+			// Remove event listener on cleanup
+			return () => window.removeEventListener('resize', handleResize);
+		}
+	}, []); // Empty array ensures that effect is only run on mount
+	return windowSize;
+}
 
 export default function Home() {
 	const [barsArray, setbarsArray] = useState([]);
+	const [length, setlength] = useState(0);
+
+	const size = useWindowSize();
+
+	useEffect(() => {
+		console.log(size);
+		setlength(size.width / 4);
+	}, [size]);
 
 	useEffect(() => {
 		setbarsArray(
-			Array.from({ length: 200 }, () => 1 + Math.floor(Math.random() * 100))
+			Array.from({ length: length }, () => 1 + Math.floor(Math.random() * 100))
 		);
 		return () => {};
-	}, []);
+	}, [length]);
 
 	return (
 		<div>
@@ -25,22 +66,23 @@ export default function Home() {
 				<div className='flex gap-[2px] items-center h-[100px]'>
 					{barsArray &&
 						barsArray.map((x, i) => {
-							return i === 100 ? (
+							console.log(length / 2);
+							return i === Math.floor(length / 2) ? (
 								<div className={`w-[1px] h-[150px] bg-black`} key={i}></div>
-							) : i < 100 ? (
+							) : i < length / 2 ? (
 								<div
-									className={`w-[3px] bg-slate-600`}
+									className={`w-[2px] bg-slate-600`}
 									style={{ height: `${x}px`, transition: 'height 100ms ease' }}
 									key={i}
 								></div>
-							) : i === 150 ? (
+							) : i === Math.floor(length / 1.5) ? (
 								<div
 									className={`h-[150px] w-[1px] bg-slate-300 whitespace-nowrap`}
 									key={i}
 								>
 									Play any music
 								</div>
-							) : i === 190 ? (
+							) : i === Math.floor(length / 1.25) ? (
 								<div
 									className={`h-[150px] w-[1px] bg-slate-300 whitespace-nowrap`}
 									key={i}
@@ -49,7 +91,7 @@ export default function Home() {
 								</div>
 							) : (
 								<div
-									className={`w-[3px] bg-slate-400`}
+									className={`w-[2px] bg-slate-400`}
 									style={{ height: `${2}px`, transition: 'height 100ms ease' }}
 									key={i}
 								></div>
@@ -64,6 +106,43 @@ export default function Home() {
 					<div className='h-16 w-16 flex justify-center items-center bg-slate-600 rounded-full'>
 						Stop
 					</div>
+				</div>
+				<div className=' w-full max-w-screen-sm mx-auto '>
+					<ul className='flex flex-col gap-4 w-full'>
+						<li className='flex gap-1 items-center justify-between'>
+							<div>clip_01.wav</div>
+							<div className='flex gap-4'>
+								<button className='p-2 bg-slate-400 text-white rounded-full'>
+									Play
+								</button>
+								<button className='p-2 bg-slate-400 text-white rounded-full'>
+									Upload
+								</button>
+							</div>
+						</li>
+						<li className='flex gap-1 items-center justify-between'>
+							<div>clip_02.wav</div>
+							<div className='flex gap-4'>
+								<button className='p-2 bg-slate-400 text-white rounded-full'>
+									Play
+								</button>
+								<button className='p-2 bg-slate-400 text-white rounded-full'>
+									Upload
+								</button>
+							</div>
+						</li>
+						<li className='flex gap-1 items-center justify-between'>
+							<div>clip_0asdasdasd3.wav</div>
+							<div className='flex gap-4'>
+								<button className='p-2 bg-slate-400 text-white rounded-full'>
+									Play
+								</button>
+								<button className='p-2 bg-slate-400 text-white rounded-full'>
+									Upload
+								</button>
+							</div>
+						</li>
+					</ul>
 				</div>
 			</main>
 
