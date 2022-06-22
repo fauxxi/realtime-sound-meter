@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { shuffle } from '../utils/helper';
-import { useStore } from '../zustandStore';
 import { Tab } from '@headlessui/react';
+import { useStore } from '../utils/useStore';
 
 function classNames(...classes) {
 	return classes.filter(Boolean).join(' ');

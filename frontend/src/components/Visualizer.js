@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useStore } from '../zustandStore';
+import { useStore } from '../utils/useStore';
 
 function log10(x) {
 	return Math.log(x) / Math.LN10;

@@ -1,10 +1,17 @@
-import { useEffect, useLayoutEffect, useState } from 'react';
-import Preparation from './components/Preparation';
-import Recorder from './components/Recorder';
+import dynamic from 'next/dynamic';
+import { useEffect, useState } from 'react';
 
-import { Visualizer } from './components/Visualizer';
+const Preparation = dynamic(() => import('../components/Preparation'), {
+	ssr: false,
+});
 
-import { useStore } from './utils/useStore';
+const Recorder = dynamic(() => import('../components/Recorder'), {
+	ssr: false,
+});
+
+import { Visualizer } from '../components/Visualizer';
+
+import { useStore } from '../utils/useStore';
 
 function useWindowSize() {
 	// Initialize state with undefined width/height so server and client renders match
@@ -58,6 +65,10 @@ function App() {
 		sliceVolLevel(length);
 	}, [length]);
 
+	useEffect(() => {
+		console.log('stage', stage);
+	}, [stage]);
+
 	return (
 		<div>
 			<main className='flex flex-col items-center gap-10 min-h-screen w-full bg-white overflow-x-hidden'>
@@ -67,21 +78,21 @@ function App() {
 				{/* <div className='text-3xl'>{Math.floor(dB)}dB</div> */}
 
 				{/* <div className='flex gap-[2px] items-center h-[100px]'>
-					{volLevel &&
-						volLevel.slice(-length / 2).map((x, i) => {
-							return (
-								<div
-									className={`w-[2px] bg-slate-600`}
-									style={{
-										height: `${x * 1000}px`,
-										maxHeight: '200px',
-										transition: 'height 100ms ease',
-									}}
-									key={i}
-								></div>
-							);
-						})}
-				</div> */}
+          {volLevel &&
+            volLevel.slice(-length / 2).map((x, i) => {
+              return (
+                <div
+                  className={`w-[2px] bg-slate-600`}
+                  style={{
+                    height: `${x * 1000}px`,
+                    maxHeight: '200px',
+                    transition: 'height 100ms ease',
+                  }}
+                  key={i}
+                ></div>
+              );
+            })}
+        </div> */}
 				{stage === 1 && <Recorder />}
 			</main>
 
