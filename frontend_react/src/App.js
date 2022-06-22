@@ -60,7 +60,7 @@ function App() {
 
 	return (
 		<div>
-			<main className='flex flex-col items-center gap-10 min-h-screen w-screen bg-white overflow-x-hidden'>
+			<main className='flex flex-col items-center gap-10 min-h-screen w-full bg-white overflow-x-hidden'>
 				<h1 className='text-4xl'>Record Audio</h1>
 				{/* <Visualizer /> */}
 				{stage === 0 && <Preparation />}

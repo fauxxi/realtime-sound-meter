@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { shuffle } from '../utils/helper';
 import { useStore } from '../zustandStore';
+import { Tab } from '@headlessui/react';
+
+function classNames(...classes) {
+	return classes.filter(Boolean).join(' ');
+}
 
 const Recorder = () => {
 	const record = useRef(null);
@@ -232,69 +237,106 @@ const Recorder = () => {
 	}, [labels, selectedMic]);
 
 	return (
-		<div className='flex flex-col items-center'>
-			<div>
-				<p>
-					Selected audio input:{' '}
-					<i className=''>{selectedMic ? selectedMic : 'none'}</i>
-				</p>
-				<p className='mb-5'>
-					Make sure the selected audio input above is correct. <br />
-					Otherwise, re-select your audio input, and reload this page.
-				</p>
-				{/* {labels.map((label, index) => (
-					<div key={index}>{label}</div>
-				))} */}
-
-				{labels.length > 0 && (
-					<p className='my-5'>
-						Record{' '}
-						<span className='font-bold'>{labels[labels.length - 1]}</span> for{' '}
-						{recordingLength} seconds
-					</p>
-				)}
-				{labels.length > 0 && (
-					<p className='my-5 text-slate-500'>
-						Next: {labels[labels.length - 2]}
-					</p>
-				)}
-
-				{labels.length === 0 && (
+		<div className='min-w-full px-5'>
+			<div className='flex flex-col items-center'>
+				<div>
 					<p>
-						Done! Please review and upload the recordings. You can repeat the
-						recording process by reloading this page.
+						Selected audio input:{' '}
+						<i className=''>{selectedMic ? selectedMic : 'none'}</i>
 					</p>
-				)}
-			</div>
-			{labels.length > 0 && (
-				<div className='flex flex-col items-center mt-10'>
-					<div className='text-3xl text-center mb-5'>
-						{('0' + Math.floor((elapsedTime / 60000) % 60)).slice(-2)}:
-						{('0' + Math.floor((elapsedTime / 1000) % 60)).slice(-2)}:
-						{('0' + ((elapsedTime / 10) % 100)).slice(-2)}
-					</div>
+					<p className='mb-5'>
+						Make sure the selected audio input above is correct. <br />
+						Otherwise, re-select your audio input, and reload this page.
+					</p>
+					{/* {labels.map((label, index) => (
+				<div key={index}>{label}</div>
+			))} */}
 
-					<div className='flex gap-10 text-white'>
-						<div
-							ref={record}
-							className={`cursor-pointer h-16 w-16 flex justify-center items-center ${
-								isRecording ? 'bg-red-500' : 'bg-slate-600'
-							} rounded-full`}
-							disabled={true}
-						>
-							Rec
+					{/* {labels.length > 0 && (
+						<p className='my-5'>
+							Record{' '}
+							<span className='font-bold'>{labels[labels.length - 1]}</span> for{' '}
+							{recordingLength} seconds
+						</p>
+					)}
+					{labels.length > 0 && (
+						<p className='my-5 text-slate-500'>
+							Next: {labels[labels.length - 2]}
+						</p>
+					)} */}
+
+					{labels.length === 0 && (
+						<p>
+							Done! Please review and upload the recordings. You can repeat the
+							recording process by reloading this page.
+						</p>
+					)}
+				</div>
+				<div className='w-full px-2 py-16 sm:px-0'>
+					<Tab.Group>
+						<Tab.List className='flex space-x-1 rounded-xl bg-blue-900/20 p-1'>
+							{labels.map((label) => (
+								<Tab
+									key={label}
+									className={({ selected }) =>
+										classNames(
+											'w-full rounded-lg py-2.5 text-sm font-medium leading-5 text-blue-700',
+											'ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400',
+											selected
+												? 'bg-white shadow'
+												: 'hover:bg-white/[0.12] hover:text-white'
+										)
+									}
+								>
+									{label}
+								</Tab>
+							))}
+						</Tab.List>
+						<Tab.Panels className='mt-2 flex justify-center'>
+							{labels.map((label, idx) => (
+								<Tab.Panel
+									key={idx}
+									className={classNames(
+										'rounded-xl bg-white p-3',
+										'ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 '
+									)}
+								>
+									{label}
+								</Tab.Panel>
+							))}
+						</Tab.Panels>
+					</Tab.Group>
+				</div>
+				{labels.length > 0 && (
+					<div className='flex flex-col items-center mt-10'>
+						<div className='text-3xl text-center mb-5'>
+							{('0' + Math.floor((elapsedTime / 60000) % 60)).slice(-2)}:
+							{('0' + Math.floor((elapsedTime / 1000) % 60)).slice(-2)}:
+							{('0' + ((elapsedTime / 10) % 100)).slice(-2)}
 						</div>
-						<div
-							ref={stop}
-							className='cursor-pointer h-16 w-16 flex justify-center items-center bg-slate-600 rounded-full'
-							disabled={!isRecording}
-						>
-							Stop
+
+						<div className='flex gap-10 text-white'>
+							<div
+								ref={record}
+								className={`cursor-pointer h-16 w-16 flex justify-center items-center ${
+									isRecording ? 'bg-red-500' : 'bg-slate-600'
+								} rounded-full`}
+								disabled={true}
+							>
+								Rec
+							</div>
+							<div
+								ref={stop}
+								className='cursor-pointer h-16 w-16 flex justify-center items-center bg-slate-600 rounded-full'
+								disabled={!isRecording}
+							>
+								Stop
+							</div>
 						</div>
 					</div>
-				</div>
-			)}
-			<div ref={soundClips} className='sound-clips mt-2'></div>
+				)}
+				<div ref={soundClips} className='sound-clips mt-2'></div>
+			</div>
 		</div>
 	);
 };
