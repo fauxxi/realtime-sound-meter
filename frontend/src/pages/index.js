@@ -1,5 +1,6 @@
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
+import { customAlphabet } from 'nanoid';
 
 const Preparation = dynamic(() => import('../components/Preparation'), {
 	ssr: false,
@@ -48,6 +49,8 @@ function useWindowSize() {
 
 function App() {
 	const stage = useStore((state) => state.stage);
+	const id = useStore((state) => state.id);
+	const setId = useStore((state) => state.setId);
 
 	const [barsArray, setbarsArray] = useState([]);
 	const [length, setlength] = useState(0);
@@ -56,6 +59,17 @@ function App() {
 	const dB = useStore((state) => state.dB);
 
 	const size = useWindowSize();
+
+	useEffect(() => {
+		if (id === '') {
+			const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 10);
+			setId(nanoid());
+		}
+	}, [id]);
+
+	useEffect(() => {
+		console.log('id', id);
+	}, [id]);
 
 	useEffect(() => {
 		setlength(Math.floor(size.width / 4));

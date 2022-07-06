@@ -2,18 +2,30 @@ import { useEffect, useRef, useState } from 'react';
 import { shuffle } from '../utils/helper';
 import { Tab } from '@headlessui/react';
 import { useStore } from '../utils/useStore';
+import { customAlphabet } from 'nanoid';
+
+import axios from 'axios';
+const BUCKET_URL =
+	'https://recorded-audio-files.s3.eu-central-1.amazonaws.com/';
 
 function classNames(...classes) {
 	return classes.filter(Boolean).join(' ');
 }
 
 const Recorder = () => {
+	const id = useStore((state) => state.id);
+	const sessionId = useStore((state) => state.sessionId);
+	const setSessionId = useStore((state) => state.setSessionId);
+
 	const record = useRef(null);
 	const stop = useRef(null);
-	const soundClips = useRef(null);
+	const soundClips = useRef([]);
 	const setdB = useStore((state) => state.setdB);
+	const [uploadingStatus, setUploadingStatus] = useState('');
 
 	const [recordingLength, setrecordingLength] = useState(0);
+
+	const [selectedTab, setselectedTab] = useState(0);
 
 	const [labels, setlabels] = useState([
 		'music with 25% volume',
@@ -31,6 +43,8 @@ const Recorder = () => {
 		'people talking',
 	]);
 
+	const [recordedData, setrecordedData] = useState([]);
+
 	const [mics, setmics] = useState([]);
 	const [selectedMic, setselectedMic] = useState('');
 
@@ -40,8 +54,29 @@ const Recorder = () => {
 	const [isRecording, setisRecording] = useState(false);
 
 	useEffect(() => {
-		setlabels((labels) => shuffle(labels));
+		if (sessionId === '') {
+			const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 5);
+			setSessionId(nanoid());
+		}
+	}, [sessionId]);
+
+	useEffect(() => {
+		console.log('sessionId', sessionId);
+	}, [sessionId]);
+
+	useEffect(() => {
+		labels.forEach((label, idx) =>
+			setrecordedData((recordedData) =>
+				[...recordedData, { id: idx, label, data: [] }].filter(
+					(v, i, a) => a.findIndex((v2) => v2.id === v.id) === i
+				)
+			)
+		);
 	}, []);
+
+	useEffect(() => {
+		console.log(recordedData);
+	}, [recordedData]);
 
 	useEffect(() => {
 		console.log('mics', mics);
@@ -103,7 +138,7 @@ const Recorder = () => {
 	}, [isRecording, isPaused]);
 
 	useEffect(() => {
-		console.log(navigator);
+		// console.log(navigator);
 
 		if (!navigator.getUserMedia)
 			navigator.getUserMedia =
@@ -112,7 +147,7 @@ const Recorder = () => {
 				navigator.msGetUserMedia;
 
 		if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-			console.log('getUserMedia supported.');
+			// console.log('getUserMedia supported.');
 			navigator.mediaDevices
 				.enumerateDevices()
 				.then(function (devices) {
@@ -132,17 +167,17 @@ const Recorder = () => {
 					console.log(err.name + ': ' + err.message);
 				});
 
-			console.log('selectedMic', selectedMic);
+			// console.log('selectedMic', selectedMic);
 
 			navigator.mediaDevices
 				.getUserMedia({
 					audio: true,
 				})
 				.then(function (stream) {
-					console.log('getUserMedia() got stream: ', stream);
+					// console.log('getUserMedia() got stream: ', stream);
 
 					const mediaRecorder = new MediaRecorder(stream);
-					console.log('mediaRecorder', mediaRecorder);
+					// console.log('mediaRecorder', mediaRecorder);
 					let chunks = [];
 					let recordingLength = [3, 4, 5];
 					setrecordingLength(
@@ -156,7 +191,7 @@ const Recorder = () => {
 						setelapsedTime(0);
 						mediaRecorder.start();
 
-						console.log('MediaRecorder started', mediaRecorder.state);
+						// console.log('MediaRecorder started', mediaRecorder.state);
 					};
 
 					mediaRecorder.ondataavailable = function (e) {
@@ -169,63 +204,56 @@ const Recorder = () => {
 								Math.floor(Math.random() * recordingLength.length)
 							]
 						);
-						clipName = labels.pop();
+						clipName = labels[selectedTab];
 						setisRecording(false);
 						setIsPaused(true);
 						mediaRecorder.stop();
-						console.log('MediaRecorder stopped', mediaRecorder.state);
+						// console.log('MediaRecorder stopped', mediaRecorder.state);
 					};
 
 					mediaRecorder.onstop = (e) => {
-						console.log('Recorder stopped: ', e);
-
-						const clipContainer = document.createElement('article');
-						const clipLabel = document.createElement('p');
-						const audio = document.createElement('audio');
-						const uploadButton = document.createElement('button');
-						const deleteButton = document.createElement('button');
-
-						clipContainer.classList.add('clip', 'mb-10');
-						audio.setAttribute('controls', '');
-						audio.classList.add('my-1');
-						uploadButton.innerHTML = 'Upload';
-						uploadButton.classList.add(
-							'mr-3',
-							'bg-blue-500',
-							'px-4',
-							'py-2',
-							'text-white',
-							'rounded-full'
+						const fileId = customAlphabet(
+							'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+							2
 						);
-						deleteButton.innerHTML = 'Delete';
-						deleteButton.classList.add(
-							'mr-3',
-							'bg-red-500',
-							'px-4',
-							'py-2',
-							'text-white',
-							'rounded-full'
-						);
-						clipLabel.innerHTML = clipName;
+						let recordedDataCopy = [...recordedData];
+						let objData = { ...recordedDataCopy[selectedTab] };
 
-						clipContainer.appendChild(clipLabel);
-						clipContainer.appendChild(audio);
-						clipContainer.appendChild(uploadButton);
-						clipContainer.appendChild(deleteButton);
-						soundClips.current.appendChild(clipContainer);
+						// console.log('Recorder stopped: ', e);
+						setelapsedTime(0);
 
 						const blob = new Blob(chunks, {
 							type: 'audio/wav',
 						});
 						chunks = [];
 						const audioURL = window.URL.createObjectURL(blob);
-						audio.src = audioURL;
 
-						deleteButton.onclick = function (e) {
-							let evtTgt = e.target;
-							setelapsedTime(0);
-							evtTgt.parentNode.parentNode.removeChild(evtTgt.parentNode);
-						};
+						objData.data.push({
+							file: new File(
+								[blob],
+								`${labels[selectedTab]
+									.split(' ')
+									.join('-')
+									.toLocaleLowerCase()
+									.replace('/', '')
+									.replace('%', '')}/${id}-${sessionId}-${fileId()}.wav`,
+								{
+									type: 'audio/wav',
+								}
+							),
+							blobUrl: audioURL,
+						});
+
+						recordedDataCopy[selectedTab] = objData;
+						setrecordedData(recordedDataCopy);
+
+						// audio.src = audioURL;
+
+						// deleteButton.onclick = function (e) {
+						// 	let evtTgt = e.target;
+						// 	setelapsedTime(0);
+						// 	evtTgt.parentNode.parentNode.removeChild(evtTgt.parentNode);
+						// };
 					};
 				})
 				.catch(function (err) {
@@ -234,7 +262,38 @@ const Recorder = () => {
 		} else {
 			console.log('getUserMedia not supported on your browser!');
 		}
-	}, [labels, selectedMic]);
+	}, [labels, selectedMic, selectedTab]);
+
+	useEffect(() => {
+		console.log('recordedData', recordedData);
+	}, [recordedData]);
+
+	useEffect(() => {
+		console.log(selectedTab);
+	}, [selectedTab]);
+
+	const uploadFile = async (file) => {
+		setUploadingStatus('Uploading the file to AWS S3');
+
+		let { data } = await axios.post('/api/upload-file', {
+			name: file.name,
+			type: file.type,
+		});
+
+		console.log(data);
+
+		const url = data.url;
+		let { data: newData } = await axios.put(url, file, {
+			headers: {
+				'Content-type': file.type,
+				'Access-Control-Allow-Origin': '*',
+			},
+		});
+
+		console.log(newData);
+
+		// setUploadedFile(BUCKET_URL + file.name);
+	};
 
 	return (
 		<div className='min-w-full px-5'>
@@ -248,22 +307,6 @@ const Recorder = () => {
 						Make sure the selected audio input above is correct. <br />
 						Otherwise, re-select your audio input, and reload this page.
 					</p>
-					{/* {labels.map((label, index) => (
-				<div key={index}>{label}</div>
-			))} */}
-
-					{/* {labels.length > 0 && (
-						<p className='my-5'>
-							Record{' '}
-							<span className='font-bold'>{labels[labels.length - 1]}</span> for{' '}
-							{recordingLength} seconds
-						</p>
-					)}
-					{labels.length > 0 && (
-						<p className='my-5 text-slate-500'>
-							Next: {labels[labels.length - 2]}
-						</p>
-					)} */}
 
 					{labels.length === 0 && (
 						<p>
@@ -273,15 +316,18 @@ const Recorder = () => {
 					)}
 				</div>
 				<div className='w-full px-2 py-16 sm:px-0'>
-					<Tab.Group>
+					<Tab.Group
+						onChange={(index) => {
+							setselectedTab(index);
+						}}
+					>
 						<Tab.List className='flex space-x-1 rounded-xl bg-blue-900/20 p-1'>
 							{labels.map((label) => (
 								<Tab
 									key={label}
 									className={({ selected }) =>
 										classNames(
-											'w-full rounded-lg py-2.5 text-sm font-medium leading-5 text-blue-700',
-											'ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400',
+											'outline-none w-full rounded-lg py-2.5 text-sm font-medium leading-5 text-blue-700',
 											selected
 												? 'bg-white shadow'
 												: 'hover:bg-white/[0.12] hover:text-white'
@@ -298,10 +344,35 @@ const Recorder = () => {
 									key={idx}
 									className={classNames(
 										'rounded-xl bg-white p-3',
-										'ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 '
+										'border-none focus:ring-0'
 									)}
 								>
-									{label}
+									<div
+										// ref={(el) => (soundClips.current[idx] = el)}
+										className='mt-2'
+									>
+										{recordedData[idx]?.data?.map((data, idx) => {
+											return (
+												<article key={idx}>
+													<p>{data?.file?.name}</p>
+													<audio src={data?.blobUrl} controls></audio>
+													<button
+														onClick={() => {
+															let recordedDataCopy = [...recordedData];
+															let objData = {
+																...recordedDataCopy[selectedTab],
+															};
+															objData.data.splice(idx, 1);
+															recordedDataCopy[selectedTab] = objData;
+															setrecordedData(recordedDataCopy);
+														}}
+													>
+														Delete
+													</button>
+												</article>
+											);
+										})}
+									</div>
 								</Tab.Panel>
 							))}
 						</Tab.Panels>
@@ -318,24 +389,39 @@ const Recorder = () => {
 						<div className='flex gap-10 text-white'>
 							<div
 								ref={record}
-								className={`cursor-pointer h-16 w-16 flex justify-center items-center ${
-									isRecording ? 'bg-red-500' : 'bg-slate-600'
+								className={`disabled cursor-pointer h-16 w-16 flex justify-center items-center ${
+									isRecording
+										? 'bg-red-500 pointer-events-none '
+										: 'bg-slate-600 pointer-events-auto'
 								} rounded-full`}
-								disabled={true}
 							>
 								Rec
 							</div>
 							<div
 								ref={stop}
-								className='cursor-pointer h-16 w-16 flex justify-center items-center bg-slate-600 rounded-full'
-								disabled={!isRecording}
+								className={`cursor-pointer h-16 w-16 flex justify-center items-center bg-slate-600 rounded-full ${
+									isRecording ? 'pointer-events-auto' : 'pointer-events-none'
+								}`}
 							>
 								Stop
 							</div>
 						</div>
+						<button
+							className='mt-10 p-2 bg-blue-500 text-white'
+							onClick={() => {
+								recordedData.map((data, idx) => {
+									// console.log('each recordedData: ', data);
+									data.data.map((dat) => {
+										// console.log('each data.data: ', dat.file);
+										uploadFile(dat.file);
+									});
+								});
+							}}
+						>
+							UPLOAD
+						</button>
 					</div>
 				)}
-				<div ref={soundClips} className='sound-clips mt-2'></div>
 			</div>
 		</div>
 	);
