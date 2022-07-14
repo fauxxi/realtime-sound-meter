@@ -5,8 +5,9 @@ import { useStore } from '../utils/useStore';
 import { customAlphabet } from 'nanoid';
 
 import axios from 'axios';
-const BUCKET_URL =
-	'https://recorded-audio-files.s3.eu-central-1.amazonaws.com/';
+import _ from 'lodash';
+const BUCKET_URL = `https://${process.env.NEXT_PUBLIC_BUCKET_NAME}.s3.eu-central-1.amazonaws.com/`;
+const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 5);
 
 function classNames(...classes) {
 	return classes.filter(Boolean).join(' ');
@@ -16,6 +17,8 @@ const Recorder = () => {
 	const id = useStore((state) => state.id);
 	const sessionId = useStore((state) => state.sessionId);
 	const setSessionId = useStore((state) => state.setSessionId);
+	const hasSubmitted = useStore((state) => state.hasSubmitted);
+	const setHasSubmitted = useStore((state) => state.setHasSubmitted);
 
 	const record = useRef(null);
 	const stop = useRef(null);
@@ -32,18 +35,19 @@ const Recorder = () => {
 		'music with 75% volume',
 		'music with 100% volume',
 		'loud breath',
-		'baby crying',
-		'chair noise/being moved',
-		'gentle scream',
-		'phone vibrating',
-		'footsteps',
-		'TV noise',
-		'window noise',
-		'laughter',
-		'people talking',
+		// 'baby crying',
+		// 'chair noise/being moved',
+		// 'gentle scream',
+		// 'phone vibrating',
+		// 'footsteps',
+		// 'TV noise',
+		// 'window noise',
+		// 'laughter',
+		// 'people talking',
 	]);
 
 	const [recordedData, setrecordedData] = useState([]);
+	const [uploadedData, setuploadedData] = useState([]);
 
 	const [mics, setmics] = useState([]);
 	const [selectedMic, setselectedMic] = useState('');
@@ -55,7 +59,6 @@ const Recorder = () => {
 
 	useEffect(() => {
 		if (sessionId === '') {
-			const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 5);
 			setSessionId(nanoid());
 		}
 	}, [sessionId]);
@@ -65,13 +68,18 @@ const Recorder = () => {
 	}, [sessionId]);
 
 	useEffect(() => {
-		labels.forEach((label, idx) =>
+		labels.forEach((label, idx) => {
 			setrecordedData((recordedData) =>
 				[...recordedData, { id: idx, label, data: [] }].filter(
 					(v, i, a) => a.findIndex((v2) => v2.id === v.id) === i
 				)
-			)
-		);
+			);
+			setuploadedData((recordedData) =>
+				[...recordedData, { id: idx, label, data: [] }].filter(
+					(v, i, a) => a.findIndex((v2) => v2.id === v.id) === i
+				)
+			);
+		});
 	}, []);
 
 	useEffect(() => {
@@ -217,7 +225,9 @@ const Recorder = () => {
 							2
 						);
 						let recordedDataCopy = [...recordedData];
+						let uploadedDataCopy = [...uploadedData];
 						let objData = { ...recordedDataCopy[selectedTab] };
+						let dbObjData = { ...uploadedDataCopy[selectedTab] };
 
 						// console.log('Recorder stopped: ', e);
 						setelapsedTime(0);
@@ -242,18 +252,31 @@ const Recorder = () => {
 								}
 							),
 							blobUrl: audioURL,
+							s3Url:
+								BUCKET_URL +
+								`${labels[selectedTab]
+									.split(' ')
+									.join('-')
+									.toLocaleLowerCase()
+									.replace('/', '')
+									.replace('%', '')}/${id}-${sessionId}-${fileId()}.wav`,
+						});
+
+						dbObjData.data.push({
+							s3Url:
+								BUCKET_URL +
+								`${labels[selectedTab]
+									.split(' ')
+									.join('-')
+									.toLocaleLowerCase()
+									.replace('/', '')
+									.replace('%', '')}/${id}-${sessionId}-${fileId()}.wav`,
 						});
 
 						recordedDataCopy[selectedTab] = objData;
+						uploadedDataCopy[selectedTab] = dbObjData;
 						setrecordedData(recordedDataCopy);
-
-						// audio.src = audioURL;
-
-						// deleteButton.onclick = function (e) {
-						// 	let evtTgt = e.target;
-						// 	setelapsedTime(0);
-						// 	evtTgt.parentNode.parentNode.removeChild(evtTgt.parentNode);
-						// };
+						setuploadedData(uploadedDataCopy);
 					};
 				})
 				.catch(function (err) {
@@ -283,21 +306,60 @@ const Recorder = () => {
 		console.log(data);
 
 		const url = data.url;
-		let { data: newData } = await axios.put(url, file, {
-			headers: {
-				'Content-type': file.type,
-				'Access-Control-Allow-Origin': '*',
-			},
+		let uploadFileData = await axios
+			.put(url, file, {
+				headers: {
+					'Content-type': file.type,
+					'Access-Control-Allow-Origin': '*',
+				},
+			})
+			.then((res) => {
+				if (res.status === 200) {
+					console.log('Uploaded to AWS S3', res);
+					console.log('Uploaded file: ', BUCKET_URL + file.name);
+				} else {
+					console.log('Error uploading to AWS S3', res);
+				}
+			})
+			.catch((err) => {
+				console.log(err);
+			});
+
+		return null;
+		// setUploadedFile(BUCKET_URL + file.name);
+	};
+
+	const saveToDb = async (recordedAudio) => {
+		let data = await axios.put('/api/db', {
+			id: id,
+			sessionId: sessionId,
+			recordedAudio,
 		});
 
-		console.log(newData);
+		console.log('saveToDb', data);
 
-		// setUploadedFile(BUCKET_URL + file.name);
+		if (data.status === 201) {
+			setrecordedData([]);
+			setuploadedData([]);
+			labels.forEach((label, idx) => {
+				setrecordedData((recordedData) =>
+					[...recordedData, { id: idx, label, data: [] }].filter(
+						(v, i, a) => a.findIndex((v2) => v2.id === v.id) === i
+					)
+				);
+				setuploadedData((recordedData) =>
+					[...recordedData, { id: idx, label, data: [] }].filter(
+						(v, i, a) => a.findIndex((v2) => v2.id === v.id) === i
+					)
+				);
+			});
+		}
 	};
 
 	return (
 		<div className='min-w-full px-5'>
 			<div className='flex flex-col items-center'>
+				<h1 className='text-2xl'>Recording Audio Samples</h1>
 				<div>
 					<p>
 						Selected audio input:{' '}
@@ -305,17 +367,20 @@ const Recorder = () => {
 					</p>
 					<p className='mb-5'>
 						Make sure the selected audio input above is correct. <br />
-						Otherwise, re-select your audio input, and reload this page.
+						Otherwise, setup your audio input, and reload this page.
 					</p>
 
-					{labels.length === 0 && (
-						<p>
-							Done! Please review and upload the recordings. You can repeat the
-							recording process by reloading this page.
-						</p>
-					)}
+					<h1 className='text-xl font-bold'>Task:</h1>
+					<p>
+						Please record an audio for each label below. You can record multiple
+						audio files for each label. After you've recorded all the labels,
+						you can finally submit the recorded clips by clicking the{' '}
+						<span className='font-bold'>SUBMIT</span> button, which will appear
+						after you've recorded all the labels. You can also freely navigate
+						to other tabs, e.g. to review your recordings.
+					</p>
 				</div>
-				<div className='w-full px-2 py-16 sm:px-0'>
+				<div className='w-full px-2 py-10 sm:px-0'>
 					<Tab.Group
 						onChange={(index) => {
 							setselectedTab(index);
@@ -327,7 +392,7 @@ const Recorder = () => {
 									key={label}
 									className={({ selected }) =>
 										classNames(
-											'outline-none w-full rounded-lg py-2.5 text-sm font-medium leading-5 text-blue-700',
+											'outline-none w-full rounded-lg py-2.5 text-sm font-medium leading-5 text-blue-700 ',
 											selected
 												? 'bg-white shadow'
 												: 'hover:bg-white/[0.12] hover:text-white'
@@ -357,14 +422,22 @@ const Recorder = () => {
 													<p>{data?.file?.name}</p>
 													<audio src={data?.blobUrl} controls></audio>
 													<button
+														className='bg-red-600 hover:bg-red-700 text-white py-1 px-2 rounded-full mt-2 mb-8'
 														onClick={() => {
 															let recordedDataCopy = [...recordedData];
+															let uploadedDataCopy = [...uploadedData];
 															let objData = {
 																...recordedDataCopy[selectedTab],
 															};
+															let dbObjData = {
+																...uploadedDataCopy[selectedTab],
+															};
 															objData.data.splice(idx, 1);
+															dbObjData.data.splice(idx, 1);
 															recordedDataCopy[selectedTab] = objData;
+															uploadedDataCopy[selectedTab] = dbObjData;
 															setrecordedData(recordedDataCopy);
+															setuploadedData(uploadedDataCopy);
 														}}
 													>
 														Delete
@@ -406,20 +479,54 @@ const Recorder = () => {
 								Stop
 							</div>
 						</div>
-						<button
-							className='mt-10 p-2 bg-blue-500 text-white'
-							onClick={() => {
-								recordedData.map((data, idx) => {
-									// console.log('each recordedData: ', data);
-									data.data.map((dat) => {
-										// console.log('each data.data: ', dat.file);
-										uploadFile(dat.file);
-									});
-								});
-							}}
-						>
-							UPLOAD
-						</button>
+						{!recordedData.some((v) => v.data.length === 0) ? (
+							<div className='mt-10 text-center'>
+								<p>
+									You can submit all clips now. Please make sure all clips are
+									fine.
+								</p>
+								<button
+									className='bg-blue-500 text-white py-2 px-4 rounded-full mt-2 mb-8'
+									onClick={() => {
+										recordedData.map((data, idx) => {
+											// console.log('each recordedData: ', data);
+											data.data.map((dat) => {
+												// console.log('each data.data: ', dat.file);
+												uploadFile(dat.file);
+											});
+										});
+										saveToDb(uploadedData);
+										setHasSubmitted(true);
+									}}
+								>
+									SUBMIT
+								</button>
+							</div>
+						) : (
+							<div className='mt-10 text-center'>
+								{!hasSubmitted && (
+									<p>Please record at least one clip for each sample/label</p>
+								)}
+							</div>
+						)}
+						{hasSubmitted && (
+							<div>
+								<p>
+									Save the Session ID below in order to get paid. <br />
+									Session ID:
+									<span className='font-bold'> {sessionId}</span>
+								</p>
+								<button
+									className='bg-green-500 text-white py-2 px-4 rounded-full mt-2 mb-8'
+									onClick={() => {
+										setHasSubmitted(false);
+										setSessionId(nanoid());
+									}}
+								>
+									Submit another?
+								</button>
+							</div>
+						)}
 					</div>
 				)}
 			</div>

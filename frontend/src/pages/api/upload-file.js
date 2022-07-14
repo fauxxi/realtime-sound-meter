@@ -12,16 +12,16 @@ export default async (req, res) => {
 		return res.status(405).json({ message: 'Method not allowed' });
 	}
 
+	let { name, type } = req.body;
+
+	const fileParams = {
+		Bucket: process.env.NEXT_PUBLIC_BUCKET_NAME,
+		Key: name,
+		Expires: 600,
+		ContentType: type,
+	};
+
 	try {
-		let { name, type } = req.body;
-
-		const fileParams = {
-			Bucket: process.env.BUCKET_NAME,
-			Key: name,
-			Expires: 600,
-			ContentType: type,
-		};
-
 		const url = await s3.getSignedUrlPromise('putObject', fileParams);
 
 		res.status(200).json({ url });

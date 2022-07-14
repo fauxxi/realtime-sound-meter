@@ -41,8 +41,10 @@ export const useStore = create((set) => ({
 			return { stage };
 		}),
 	dB: 0,
-	volHistory: [],
 	setdB: (dB) => set(() => ({ dB })),
+	hasSubmitted: false,
+	setHasSubmitted: (hasSubmitted) => set(() => ({ hasSubmitted })),
+	volHistory: [],
 	setVolHistory: (e) =>
 		set((state) => ({ volHistory: [...state.volHistory, e] })),
 	sliceVolHistory: (e) =>

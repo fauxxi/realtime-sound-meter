@@ -163,6 +163,9 @@ const Preparation = () => {
 
 	return (
 		<div className='w-full text-center'>
+			<div>
+				<h2 className='text-2xl'>Preparation</h2>
+			</div>
 			<h3>Which sample has a better quality compared to the other one?</h3>
 			{values.slice(0, step + 1).map((v, i) => (
 				<RadioList
